@@ -52,7 +52,7 @@ Add the following content to the file:
 ```ini
 [Unit]
 Description=Run Temp and IP Script at login
-After=default.target
+After=network-online.target default.target
 
 [Service]
 ExecStart=/usr/bin/python3 /home/$USER/scripts/fw16/Temp_and_IP.py
