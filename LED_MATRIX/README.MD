@@ -30,6 +30,8 @@ Description=Run IO Info Script at boot
 
 [Service]
 ExecStart=/usr/bin/python3 /home/$USER/scripts/fw16/IO_Info.py
+Environment="DISPLAY=:0"
+Environment="XDG_RUNTIME_DIR=/run/user/1000"
 WorkingDirectory=/home/$USER/scripts/fw16/
 Restart=always
 User=$USER
