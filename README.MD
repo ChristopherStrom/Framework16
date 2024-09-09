@@ -59,3 +59,11 @@ This project controls an LED matrix (9x34) connected to `/dev/ttyACM0` and displ
 
 ## Example Display
 
+Battery Icon: 
+Row 1: [1, 1, 1, 1, 1, 1, 1, 1, 0] 
+Row 2: [1, 0, 0, 0, 0, 0, 0, 1, 1] (Dynamic, middle changes as % of charge) 
+Row 3: [1, 1, 1, 1, 1, 1, 1, 1, 0]
+
+Volume Icon (Zigzag pattern): 
+Row 7: [0, 1, 0, 1, 0, 1, 0, 1, 0] 
+Row 8: [1, 0, 1, 0, 1, 0, 1, 0, 1]
