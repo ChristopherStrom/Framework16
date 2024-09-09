@@ -51,12 +51,15 @@ Add the following content to the file:
 
 ```ini
 [Unit]
-Description=Run Temp and IP Script at login
+Description=Run Temp and IP Script 30 seconds after login and when network services are up
 After=network-online.target default.target
+Wants=network-online.target
 
 [Service]
-ExecStart=/usr/bin/python3 /home/$USER/scripts/fw16/Temp_and_IP.py
-WorkingDirectory=/home/$USER/scripts/fw16/
+Type=idle
+ExecStartPre=/bin/sleep 30
+ExecStart=/usr/bin/python3 /home/cyberlab/scripts/fw16/Temp_and_IP.py
+WorkingDirectory=/home/cyberlab/scripts/fw16/
 Restart=always
 
 [Install]
