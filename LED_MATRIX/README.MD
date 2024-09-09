@@ -1,6 +1,6 @@
-# Automated Python Scripts on Boot
+# Automated Python Scripts on Login
 
-This repository contains two Python scripts, `IO_Info.py` and `Temp_and_IP.py`, that are designed to run in the background at boot using systemd. The scripts are located in `/home/$USER/scripts/fw16/`.
+This repository contains two Python scripts, `IO_Info.py` and `Temp_and_IP.py`, that are designed to run at user login using systemd. The scripts are located in `/home/$USER/scripts/fw16/`.
 
 ## Prerequisites
 
@@ -10,85 +10,78 @@ Make sure Python3 is installed on your system. You can install it using:
 sudo apt-get install python3
 ```
 
-## Setting Up the Scripts to Run on Boot
+## Setting Up the Scripts to Run on User Login
 
-To configure the scripts to run in the background during boot, you need to create two systemd service files.
+To configure the scripts to run in the background during user login, follow these steps to create user-specific systemd service files.
 
-### 1. Create the `io_info.service` file
+### 1. Create the `io_info.service` for `IO_Info.py`
 
-Run the following command to create the service file:
+Run the following command to create the user service file:
 
 ```bash
-sudo nano /etc/systemd/system/io_info.service
+mkdir -p /.config/systemd/user
+nano /.config/systemd/user/io_info.service
 ```
 
 Add the following content to the file:
 
 ```ini
 [Unit]
-Description=Run IO Info Script at boot
-After=graphical.target
+Description=Run IO Info Script at login
+After=default.target
 
 [Service]
 ExecStart=/usr/bin/python3 /home/$USER/scripts/fw16/IO_Info.py
-Environment="DISPLAY=:0"
-Environment="XDG_RUNTIME_DIR=/run/user/1000"
 WorkingDirectory=/home/$USER/scripts/fw16/
 Restart=always
-User=$USER
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 ```
 
-### 2. Create the `temp_and_ip.service` file
+### 2. Create the `temp_and_ip.service` for `Temp_and_IP.py`
 
 Run the following command to create the service file:
 
 ```bash
-sudo nano /etc/systemd/system/temp_and_ip.service
+nano /.config/systemd/user/temp_and_ip.service
 ```
 
 Add the following content to the file:
 
 ```ini
 [Unit]
-Description=Run Temp and IP Script at boot
-After=graphical.target
+Description=Run Temp and IP Script at login
+After=default.target
 
 [Service]
 ExecStart=/usr/bin/python3 /home/$USER/scripts/fw16/Temp_and_IP.py
 WorkingDirectory=/home/$USER/scripts/fw16/
 Restart=always
-User=$USER
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 ```
 
-## Enable and Start the Services
+### 3. Enable and Start the User Services
 
-Once you’ve created both service files, enable them to start at boot by running:
+To enable the services so they run at login, use the following commands:
 
 ```bash
-sudo systemctl enable io_info.service
-sudo systemctl enable temp_and_ip.service
+systemctl --user enable io_info.service
+systemctl --user enable temp_and_ip.service
 ```
 
-If you want to start them immediately without rebooting, use:
+To start the services immediately, use:
 
 ```bash
-sudo systemctl start io_info.service
-sudo systemctl start temp_and_ip.service
+systemctl --user start io_info.service
+systemctl --user start temp_and_ip.service
 ```
 
-### Verifying Service Status
+### 4. Enable Lingering (Optional)
 
-To verify if the services are running correctly, use the following command:
+If you want these services to start even after boot without logging in, enable lingering for the user:
 
 ```bash
-sudo systemctl status io_info.service
-sudo systemctl status temp_and_ip.service
-```
-
-If the services are running successfully, you will see their status as "active (running)".
+sudo loginctl enable-linger $USER
