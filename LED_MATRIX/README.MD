@@ -27,6 +27,7 @@ Add the following content to the file:
 ```ini
 [Unit]
 Description=Run IO Info Script at boot
+After=graphical.target
 
 [Service]
 ExecStart=/usr/bin/python3 /home/$USER/scripts/fw16/IO_Info.py
@@ -53,6 +54,7 @@ Add the following content to the file:
 ```ini
 [Unit]
 Description=Run Temp and IP Script at boot
+After=graphical.target
 
 [Service]
 ExecStart=/usr/bin/python3 /home/$USER/scripts/fw16/Temp_and_IP.py
