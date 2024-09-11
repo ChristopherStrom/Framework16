@@ -176,6 +176,28 @@ def get_battery_level():
     except FileNotFoundError:
         print("Could not find battery capacity file.")
         return 0
+    
+def animate_battery_charge(serial_connection, current_battery_level):
+    """Animate battery filling up one LED at a time."""
+    # Turn on LEDs one at a time (charging animation)
+    for i in range(1, 7):
+        battery_icon = [
+            [1, 1, 1, 1, 1, 1, 1, 1, 0],
+            [1] + [1 if j < i else 0 for j in range(6)] + [1, 1],  # Fill LEDs one at a time
+            [1, 1, 1, 1, 1, 1, 1, 1, 0],
+        ]
+        
+        vals = [0x00 for _ in range(39)]  # Initialize 9x34 LED grid
+        flattened_vals = [val for row in battery_icon for val in row]  # Flatten the icon
+        
+        for k in range(len(flattened_vals)):
+            if flattened_vals[k]:
+                vals[k // 8] |= (1 << (k % 8))  # Turn on the LED
+                
+        # Send the animation frame to the LED matrix
+        command = FWK_MAGIC + [0x06] + vals
+        send_command_raw(serial_connection, command)
+        time.sleep(0.25)  # Delay to create animation effect
 
 def is_charging():
     """Check if the laptop is charging."""
