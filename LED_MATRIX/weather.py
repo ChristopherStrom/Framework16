@@ -41,7 +41,7 @@ def get_current_temperature_and_icon_from_forecast(forecast_url):
     except Exception as e:
         if DEBUG:
             print(f"Error getting forecast data: {e}")
-        return None, None
+        return 00, "None"
 
 def get_forecast_text(short_forecast):
     short_forecast = short_forecast.lower()
