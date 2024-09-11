@@ -34,6 +34,8 @@ def set_brightness(serial_connection, brightness_level):
 
 def display_battery_icon(battery_percentage, combined_grid):
     """Display the battery icon with dynamic second row indicating charge level."""
+    
+    # Battery icon structure
     battery_icon = [
         [1, 1, 1, 1, 1, 1, 1, 1, 0],  # Row 1 (top)
         [1, 0, 0, 0, 0, 0, 0, 1, 1],  # Row 2 (dynamic row for battery level)
@@ -50,6 +52,7 @@ def display_battery_icon(battery_percentage, combined_grid):
         combined_grid[row] = battery_icon[row]
 
     return combined_grid
+
 
 def display_volume_icon(volume_percentage, combined_grid):
     """Display a zigzag pattern across 2 rows for volume level based on percentage."""
@@ -177,27 +180,25 @@ def get_battery_level():
         print("Could not find battery capacity file.")
         return 0
     
-def animate_battery_charge(serial_connection, current_battery_level):
-    """Animate battery filling up one LED at a time."""
-    # Turn on LEDs one at a time (charging animation)
+def animate_battery_charge(serial_connection, current_battery_level, combined_grid):
+    """Animate battery filling up one LED at a time in the combined grid."""
+    
+    # Animation logic updates the grid
     for i in range(1, 7):
         battery_icon = [
             [1, 1, 1, 1, 1, 1, 1, 1, 0],
             [1] + [1 if j < i else 0 for j in range(6)] + [1, 1],  # Fill LEDs one at a time
             [1, 1, 1, 1, 1, 1, 1, 1, 0],
         ]
-        
-        vals = [0x00 for _ in range(39)]  # Initialize 9x34 LED grid
-        flattened_vals = [val for row in battery_icon for val in row]  # Flatten the icon
-        
-        for k in range(len(flattened_vals)):
-            if flattened_vals[k]:
-                vals[k // 8] |= (1 << (k % 8))  # Turn on the LED
-                
-        # Send the animation frame to the LED matrix
-        command = FWK_MAGIC + [0x06] + vals
-        send_command_raw(serial_connection, command)
-        time.sleep(0.25)  # Delay to create animation effect
+
+        # Update the combined grid
+        for row in range(3):
+            combined_grid[row] = battery_icon[row]
+
+        #time.sleep(0.25)  # Delay to create animation effect
+
+    return combined_grid
+
 
 def is_charging():
     """Check if the laptop is charging."""
@@ -258,40 +259,37 @@ def main_loop():
                 combined_grid[3:6] = spacer
 
                 combined_grid = display_volume_icon(volume_level, combined_grid)
-
                 # Add spacer after volume
                 spacer = add_spacer()
                 combined_grid[8:11] = spacer
-
                 combined_grid = display_usage_icon(CPU_HISTORY, combined_grid, start_row=11)  # CPU icon at rows 11-20
-
                 # Add spacer after CPU
                 spacer = add_spacer()
                 combined_grid[21:24] = spacer
-
                 # Memory usage history
                 combined_grid = display_usage_icon(MEMORY_HISTORY, combined_grid, start_row=24)  # Memory icon at rows 24-33
 
                 # If charging, animate the battery charging
                 if is_charging():
-                    animate_battery_charge(ser, battery_level, combined_grid)
-                else:
-                    # Flatten the combined grid (34 rows by 9 columns = 306 bits)
-                    flattened_vals = [val for row in combined_grid for val in row]
-                    
-                    # Prepare the `vals` array (39 bytes)
-                    vals = [0x00 for _ in range(39)]
-                    for i in range(min(len(flattened_vals), 306)):  # 306 bits for 34x9 grid
-                        if flattened_vals[i]:
-                            vals[i // 8] |= (1 << (i % 8))  # Convert to bytes
+                    combined_grid = animate_battery_charge(ser, battery_level, combined_grid)
 
-                    command = FWK_MAGIC + [0x06] + vals
-                    send_command_raw(ser, command)
+                # Flatten the combined grid (34 rows by 9 columns = 306 bits)
+                flattened_vals = [val for row in combined_grid for val in row]
+                
+                # Prepare the `vals` array (39 bytes)
+                vals = [0x00 for _ in range(39)]
+                for i in range(min(len(flattened_vals), 306)):  # 306 bits for 34x9 grid
+                    if flattened_vals[i]:
+                        vals[i // 8] |= (1 << (i % 8))  # Convert to bytes
 
-                time.sleep(1)  # Wait 1 second
+                command = FWK_MAGIC + [0x06] + vals
+                send_command_raw(ser, command)
+
+                time.sleep(.25)  # Wait 1 second
 
     except (IOError, OSError) as ex:
         print(f"Error: {ex}")
+
 
 if __name__ == "__main__":
     main_loop()
