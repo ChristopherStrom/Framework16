@@ -48,7 +48,7 @@ def get_forecast_text(short_forecast):
     if "cloud" in short_forecast:
         return 'Cloudy'
     elif "sun" in short_forecast or "clear" in short_forecast:
-        return 'Sunny'
+        return 'Skies'
     elif "rain" in short_forecast or "showers" in short_forecast:
         return 'Rain'
     elif "snow" in short_forecast:

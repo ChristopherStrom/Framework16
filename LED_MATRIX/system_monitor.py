@@ -4,6 +4,8 @@ import serial
 import os
 import subprocess
 import glob
+from settings import DEBUG, BRIGHTNESS
+from led_serial import set_brightness
 
 FWK_MAGIC = [0x32, 0xAC]
 SERIAL_PORT = None  # Placeholder for the serial port that will be detected
@@ -71,10 +73,11 @@ def display_volume_icon(volume_percentage, combined_grid):
         else:
             volume_icon[0][i] = 1  # Set LED on top row
     
-    # Debug output to console
-    print(f"Volume Level: {volume_percentage}%")
-    print("Volume Icon (Top Row 7):", volume_icon[0])
-    print("Volume Icon (Bottom Row 8):", volume_icon[1])
+    if DEBUG:
+        # Debug output to console
+        print(f"Volume Level: {volume_percentage}%")
+        print("Volume Icon (Top Row 7):", volume_icon[0])
+        print("Volume Icon (Bottom Row 8):", volume_icon[1])
     
     # Insert the volume icon into the combined grid (assumed to be rows 7-8 in the combined grid)
     for row in range(2):
@@ -180,24 +183,31 @@ def get_battery_level():
         print("Could not find battery capacity file.")
         return 0
     
-def animate_battery_charge(serial_connection, current_battery_level, combined_grid):
-    """Animate battery filling up one LED at a time in the combined grid."""
+def animate_battery_charge(current_battery_level, combined_grid, cycle_count):
+    """Animate battery filling up one LED at a time, starting from current battery level."""
     
-    # Animation logic updates the grid
-    for i in range(1, 7):
-        battery_icon = [
-            [1, 1, 1, 1, 1, 1, 1, 1, 0],
-            [1] + [1 if j < i else 0 for j in range(6)] + [1, 1],  # Fill LEDs one at a time
-            [1, 1, 1, 1, 1, 1, 1, 1, 0],
-        ]
+    # Convert battery percentage to number of filled LEDs (0-6)
+    initial_led_count = int(6 * (current_battery_level / 100))
 
-        # Update the combined grid
-        for row in range(3):
-            combined_grid[row] = battery_icon[row]
+    # Calculate the total number of LEDs to be filled in the animation
+    animated_led_count = initial_led_count + (cycle_count % (7 - initial_led_count))
 
-        #time.sleep(0.25)  # Delay to create animation effect
+    # Ensure that we don't exceed the maximum 6 LEDs
+    led_count = min(animated_led_count, 6)
+
+    # Construct the battery icon with animated LED count
+    battery_icon = [
+        [1, 1, 1, 1, 1, 1, 1, 1, 0],  # Top border
+        [1] + [1 if j < led_count else 0 for j in range(6)] + [1, 1],  # Animated row
+        [1, 1, 1, 1, 1, 1, 1, 1, 0],  # Bottom border
+    ]
+
+    # Update the combined grid with the current battery icon
+    for row in range(3):
+        combined_grid[row] = battery_icon[row]
 
     return combined_grid
+
 
 
 def is_charging():
@@ -205,10 +215,13 @@ def is_charging():
     try:
         with open("/sys/class/power_supply/BAT1/status", "r") as f:
             status = f.read().strip()
-            return status == "Charging"
+            if DEBUG:
+                print(f"Battery status: {status}")  # Debugging line to print the status
+            return status == "Charging"  # Return True only if status is 'Charging'
     except FileNotFoundError:
         print("Could not find battery status file.")
         return False
+
 
 def get_system_volume():
     """Retrieve the current system volume level."""
@@ -234,8 +247,10 @@ def main_loop():
 
     try:
         with serial.Serial(SERIAL_PORT, 115200) as ser:
-            set_brightness(ser, 64)  # Set brightness to 25%
+            set_brightness(ser, BRIGHTNESS)  # Set brightness to 25%
             combined_grid = [[0] * 9 for _ in range(34)]  # Initialize a 9x34 grid for the full display
+
+            cycle_count = 0  # Used to track cycles for animations
 
             while True:
                 battery_level = get_battery_level()  # Get actual battery level
@@ -243,35 +258,41 @@ def main_loop():
                 cpu_usage = psutil.cpu_percent()  # Get current CPU usage
                 memory_usage = psutil.virtual_memory().percent  # Get current memory usage
 
-                # Print for debugging
-                print(f"Memory Usage: {memory_usage}%")
-                print(f"CPU Usage: {cpu_usage}%")
+                if DEBUG:
+                    # Print for debugging
+                    print(f"Memory Usage: {memory_usage}%")
+                    print(f"CPU Usage: {cpu_usage}%")
 
-                # Update CPU and memory usage histories and shift
+                # Update CPU usage history and shift
                 shift_and_update_cpu_usage(cpu_usage)
-                shift_and_update_memory_usage(memory_usage)
 
-                # Generate the icons and update the combined grid
-                combined_grid = display_battery_icon(battery_level, combined_grid)
+                # Check if charging
+                if is_charging():
+                    # Animate battery if charging
+                    combined_grid = animate_battery_charge(battery_level, combined_grid, cycle_count)
+                else:
+                    # Display static battery level if not charging
+                    combined_grid = display_battery_icon(battery_level, combined_grid)
 
                 # Add spacer after battery
                 spacer = add_spacer()
                 combined_grid[3:6] = spacer
 
                 combined_grid = display_volume_icon(volume_level, combined_grid)
+
                 # Add spacer after volume
                 spacer = add_spacer()
                 combined_grid[8:11] = spacer
-                combined_grid = display_usage_icon(CPU_HISTORY, combined_grid, start_row=11)  # CPU icon at rows 11-20
+
+                combined_grid = display_usage_icon(CPU_HISTORY, combined_grid, start_row=11)  # CPU icon at rows 17-26
+
                 # Add spacer after CPU
                 spacer = add_spacer()
                 combined_grid[21:24] = spacer
-                # Memory usage history
-                combined_grid = display_usage_icon(MEMORY_HISTORY, combined_grid, start_row=24)  # Memory icon at rows 24-33
 
-                # If charging, animate the battery charging
-                if is_charging():
-                    combined_grid = animate_battery_charge(ser, battery_level, combined_grid)
+                # Memory usage history
+                memory_history = [[1 if row < map_percentage_to_rows(memory_usage) else 0 for row in range(10)] for _ in range(9)]
+                combined_grid = display_usage_icon(memory_history, combined_grid, start_row=24)  # Memory icon at rows 24-33
 
                 # Flatten the combined grid (34 rows by 9 columns = 306 bits)
                 flattened_vals = [val for row in combined_grid for val in row]
@@ -285,11 +306,11 @@ def main_loop():
                 command = FWK_MAGIC + [0x06] + vals
                 send_command_raw(ser, command)
 
+                cycle_count += 1  # Increment cycle count to control animations
                 time.sleep(.25)  # Wait 1 second
 
     except (IOError, OSError) as ex:
         print(f"Error: {ex}")
-
 
 if __name__ == "__main__":
     main_loop()

@@ -1,7 +1,7 @@
 import threading
 import time
 import serial
-from settings import DELAY, WIDTH, HEIGHT
+from settings import DELAY, WIDTH, HEIGHT, BRIGHTNESS
 from led_serial import FWK_MAGIC, detect_serial_port, set_brightness, clear_leds, send_command_raw
 from weather import get_nws_forecast_url, get_current_temperature_and_icon_from_forecast, get_forecast_text
 from ipaddresses import get_private_ip, get_public_ip
@@ -85,6 +85,7 @@ def display_temperature_and_scroll(serial_connection):
 
         command = FWK_MAGIC + [0x06] + vals
         send_command_raw(serial_connection, command)
+        set_brightness(serial_connection, BRIGHTNESS)
 
         # Update the scrolling offsets
         forecast_offset = (forecast_offset + 1) % forecast_length
@@ -162,7 +163,7 @@ def main_loop():
 
     try:
         with serial.Serial(SERIAL_PORT, 115200) as ser:
-            set_brightness(ser, 64)
+        
             start_threads(ser)
             while True:
                 time.sleep(1)

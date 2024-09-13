@@ -1,7 +1,8 @@
 # settings.py
 
-DEBUG = True  # Enable or disable debug mode
+DEBUG = False  # Enable or disable debug mode
 DELAY = 0.2  # Delay used for display animation wait time
+BRIGHTNESS = 128 #0-255 how might are the leds
 
 # Constants for LED matrix display
 WIDTH = 9  # Number of columns on the LED matrix
